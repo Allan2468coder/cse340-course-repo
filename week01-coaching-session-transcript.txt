@@ -1,0 +1,170 @@
+Week 01 Coaching Session - Student Responses
+=============================================
+
+Student Name: Allan
+
+---
+
+TOPIC 1: Express Routing
+-------------------------
+
+Code Snippet (server.js):
+
+    app.get('/', async (req, res) => {
+        const title = 'Home';
+        res.render('home', { title });
+    });
+
+    app.get('/organizations', async (req, res) => {
+        const title = 'Our Partner Organizations';
+        res.render('organizations', { title });
+    });
+
+    app.get('/projects', async (req, res) => {
+        const title = 'Service Projects';
+        res.render('projects', { title });
+    });
+
+    app.get('/categories', async (req, res) => {
+        const title = 'Service Project Categories';
+        res.render('categories', { title });
+    });
+
+Student Response:
+
+Express routing works by matching incoming HTTP requests to specific handler functions based on the request method and URL path. In this file, each `app.get()` call registers a route that listens for GET requests at a specific path.
+
+When a user navigates to `/organizations`, Express matches that request to the corresponding `app.get('/organizations', ...)` handler. The handler function receives two parameters: `req` (the request object containing request data) and `res` (the response object used to send data back to the client).
+
+I chose `res.render()` instead of sending plain text or JSON because this application uses EJS as its templating engine (configured with `app.set('view engine', 'ejs')`). The `res.render()` method tells Express to locate the corresponding EJS template file (in this case `organizations.ejs`) and render it with the provided data object `{ title }`. This allows the template to dynamically display the title using EJS syntax like `<%= title %>`.
+
+Using `res.render()` is appropriate here because the goal is to serve complete HTML pages to a browser, not raw data for an API.
+
+---
+
+TOPIC 2: JavaScript Language Principles
+----------------------------------------
+
+Code Snippet (server.js):
+
+    const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || 'production';
+    const PORT = process.env.PORT || 3000;
+
+Student Response:
+
+This code demonstrates two key JavaScript language principles:
+
+1. Optional Chaining (`?.`): The expression `process.env.NODE_ENV?.toLowerCase()` uses optional chaining to safely access the `NODE_ENV` property. If `process.env.NODE_ENV` is undefined or null, the expression short-circuits and returns `undefined` instead of throwing a runtime error. The `.toLowerCase()` method is only called if the value actually exists.
+
+2. Logical OR (`||`) for Default Values: The `|| 'production'` part provides a fallback value. If the left side evaluates to a falsy value (such as `undefined`, `null`, or an empty string), JavaScript evaluates and returns the right side instead.
+
+This pattern is useful in Node.js applications because environment variables may or may not be set depending on the deployment environment. Optional chaining prevents crashes when variables are missing, and the logical OR operator ensures the application always has a sensible default value to work with.
+
+---
+
+TOPIC 3: EJS Partials and Pages
+--------------------------------
+
+Code Snippet (home.ejs):
+
+    <%- include('partials/header') %>
+
+    <main>
+        <h1><%= title %></h1>
+
+        <h2>Welcome to the CSE 340 Service Network!</h2>
+        <p>Our mission is to promote service across the world by connecting volunteers with service opportunities in their community.</p>
+
+        <img class="main-logo" src="images/cse340-service-network.png" alt="CSE 340 Service Network Logo">
+    </main>
+
+    <%- include('partials/footer') %>
+
+Code Snippet (partials/header.ejs):
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title><%= title %></title>
+        <link rel="stylesheet" href="/css/main.css">
+    </head>
+    <body>
+        <nav>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/organizations">Organizations</a></li>
+                <li><a href="/projects">Projects</a></li>
+                <li><a href="/categories">Categories</a></li>
+            </ul>
+        </nav>
+
+Student Response:
+
+EJS partials are reusable template fragments that can be included in multiple EJS views. In this setup, the `header.ejs` partial contains the opening HTML structure (DOCTYPE, html, head with meta tags and stylesheet links, opening body tag, and navigation bar), and the `footer.ejs` partial contains the closing HTML structure.
+
+The difference between `<%- include(...) %>` and `<%= include(...) %>` is that `<%= ... %>` escapes HTML entities for security (converting special characters to HTML entities to prevent XSS attacks), while `<%- ... %>` outputs raw, unescaped HTML. I used `<%- include(...) %>` because the partials contain HTML markup that needs to be rendered as actual HTML elements, not displayed as plain text.
+
+I structured the header and footer as separate partial files to follow the DRY (Don't Repeat Yourself) principle. Without partials, I would need to copy and paste the same navigation and closing HTML tags into every page file. With partials, the header and footer are maintained in one place, so any updates only need to be made once.
+
+---
+
+TOPIC 4: Frontend CSS
+----------------------
+
+Code Snippet (main.css):
+
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #e74c3c;
+        --success-color: #27ae60;
+        --light-bg: #ecf0f1;
+        --dark-text: #2c3e50;
+        --light-text: #7f8c8d;
+        --border-color: #bdc3c7;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+        --transition: all 0.3s ease;
+    }
+
+    @media screen and (max-width: 767px) {
+        html, body {
+            font-size: 15px;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            margin-top: 1rem;
+        }
+
+        nav ul {
+            flex-direction: row;
+        }
+
+        nav li {
+            flex: 0 1 50%;
+        }
+    }
+
+Student Response:
+
+This CSS demonstrates two important frontend principles:
+
+1. CSS Custom Properties (Variables): The `:root` selector defines custom properties such as `--primary-color`, `--secondary-color`, `--shadow`, and `--transition`. These variables serve as centralized design tokens that can be reused throughout the stylesheet. For example, instead of writing `color: #2c3e50` everywhere, I can use `color: var(--primary-color)`. This makes the code more maintainable because if I want to change the color scheme, I only need to update the variable definition in one place rather than finding and replacing every instance.
+
+2. Mobile-First Responsive Design: The media query `@media screen and (max-width: 767px)` targets smaller screens (mobile devices). By placing mobile styles in a `max-width` query and using `min-width` queries for larger screens, I follow a mobile-first approach where the default styles are optimized for mobile, and additional styles are layered on top as screen size increases.
+
+I chose this approach because mobile traffic often represents the majority of users, starting with simpler mobile layouts and enhancing for larger screens is more performant, and it forces prioritization of content and functionality. The CSS is also more maintainable because base styles are clean and progressive enhancement is organized by breakpoint.
+
+---
+
+RUBRIC COMPLETION STATUS
+=========================
+
+1) Complete - The student discussed the way Express routing works in the server.js file, supported by a relevant Node.js function snippet.
+2) Complete - The student discussed JavaScript language principles, supported by a relevant JavaScript function snippet.
+3) Complete - The student discussed EJS partials and EJS Pages, supported by a relevant EJS code snippet.
+4) Complete - The student discussed frontend CSS, supported by a relevant CSS code snippet.
+5) Complete - All rubric rows are marked complete. Total Points: 25.
