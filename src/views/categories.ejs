@@ -4,10 +4,9 @@
     <h2>Service Project Categories</h2>
     <p>Explore opportunities to make a difference in these areas:</p>
     <ul>
-    <li><strong>Environmental</strong>: Join us in protecting our planet through conservation, sustainability, and environmental cleanup initiatives.</li>
-    <li><strong>Educational</strong>: Help students succeed and inspire lifelong learning through tutoring, mentoring, and educational outreach programs.</li>
-    <li><strong>Community Service</strong>: Strengthen neighborhoods by supporting local initiatives that bring communities together and build lasting connections.</li>
-    <li><strong>Health and Wellness</strong>: Promote wellbeing and support those in need through health awareness, fitness programs, and wellness initiatives.</li>
-</ul>
+    <% categories.forEach(category => { %>
+        <li><strong><%= category.name %></strong></li>
+    <% }) %>
+    </ul>
 </main>
 <%- include('partials/footer') %>

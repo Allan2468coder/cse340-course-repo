@@ -87,3 +87,89 @@ FROM service_project
 JOIN organization
     ON service_project.organization_id = organization.organization_id
 ORDER BY service_project.project_date;
+
+-- Create the service project category table
+CREATE TABLE category (
+    category_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- Create the many-to-many project/category junction table
+CREATE TABLE project_category (
+    project_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    PRIMARY KEY (project_id, category_id),
+    CONSTRAINT project_category_project_fk
+        FOREIGN KEY (project_id)
+        REFERENCES service_project (project_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT project_category_category_fk
+        FOREIGN KEY (category_id)
+        REFERENCES category (category_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+-- Insert service project categories
+INSERT INTO category (name)
+VALUES
+    ('Community Development'),
+    ('Environmental Stewardship'),
+    ('Education and Mentoring'),
+    ('Food Security');
+
+-- Associate every service project with at least one category
+INSERT INTO project_category (project_id, category_id)
+SELECT service_project.project_id, category.category_id
+FROM service_project
+CROSS JOIN category
+WHERE
+    (category.name = 'Community Development'
+        AND service_project.title IN (
+            'Community Center Renovation',
+            'Neighborhood Playground Build',
+            'Accessible Walkway Installation',
+            'Senior Housing Repairs',
+            'Community Garden Structures',
+            'Park Cleanup Day',
+            'Neighborhood Cleanup',
+            'Holiday Giving Project'
+        ))
+    OR (category.name = 'Environmental Stewardship'
+        AND service_project.title IN (
+            'Accessible Walkway Installation',
+            'Community Garden Structures',
+            'Spring Garden Preparation',
+            'Urban Farm Volunteer Day',
+            'Community Food Harvest',
+            'Fall Garden Cleanup',
+            'Park Cleanup Day',
+            'Neighborhood Cleanup'
+        ))
+    OR (category.name = 'Education and Mentoring'
+        AND service_project.title IN (
+            'Farm Education Workshop',
+            'Youth Mentoring Event'
+        ))
+    OR (category.name = 'Food Security'
+        AND service_project.title IN (
+            'Community Food Harvest',
+            'Community Food Drive',
+            'Holiday Giving Project'
+        ));
+
+-- Verify the category data and project associations
+SELECT category.category_id, category.name
+FROM category
+ORDER BY category.name;
+
+SELECT
+    service_project.title,
+    category.name AS category_name
+FROM project_category
+JOIN service_project
+    ON project_category.project_id = service_project.project_id
+JOIN category
+    ON project_category.category_id = category.category_id
+ORDER BY service_project.title, category.name;
