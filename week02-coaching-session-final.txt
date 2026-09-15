@@ -1,0 +1,151 @@
+CSE 340 Week 02 Coaching Session
+Database Entities and End-to-End Data Flow
+
+Student: Allan Ogwal
+Role: Learning Coach and Software Mentor
+Date: September 15, 2026
+Estimated discussion length: approximately 30-45 minutes
+
+Note: This document summarizes the coaching discussion about the completed Week 2 project. It includes the required technical topics, code snippets, and explanations.
+
+============================================================
+INTRODUCTION
+============================================================
+
+Coach: Welcome! Just to be clear from the start, this is a coaching session, not a test. It is perfectly okay—and even encouraged—to say "I don't know" or "I made a mistake." That's the fastest way we'll learn today.
+
+Coach: The purpose of this session is to discuss how the database, Node.js model functions, Express routes, and EJS templates work together in the service project application.
+
+Student: My name is Allan Ogwal.
+
+============================================================
+TOPIC 1: RELATIONAL DATABASE DESIGN AND STRUCTURE
+============================================================
+
+Coach: The application uses organizations, service projects, categories, and a junction table. Each service project belongs to one organization. Categories and projects have a many-to-many relationship.
+
+Relevant SQL from src/setup.sql:
+
+CREATE TABLE category (
+    category_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE project_category (
+    project_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    PRIMARY KEY (project_id, category_id),
+    CONSTRAINT project_category_project_fk
+        FOREIGN KEY (project_id)
+        REFERENCES service_project (project_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT project_category_category_fk
+        FOREIGN KEY (category_id)
+        REFERENCES category (category_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+Student: The category table stores each category once. The category_id is the primary key, and the name is unique so duplicate category names cannot be inserted. The project_category table is a junction table connecting service_project and category.
+
+A project can belong to multiple categories, and a category can be assigned to multiple projects. The composite primary key, made from project_id and category_id, prevents the same association from being entered twice. A single category_id column inside service_project would only allow one category for each project, so it would not support the required many-to-many relationship.
+
+One relevant association query is:
+
+INSERT INTO project_category (project_id, category_id)
+SELECT service_project.project_id, category.category_id
+FROM service_project
+CROSS JOIN category
+WHERE category.name = 'Food Security'
+  AND service_project.title IN (
+      'Community Food Harvest',
+      'Community Food Drive',
+      'Holiday Giving Project'
+  );
+
+Student: This query finds the IDs from the existing tables by name and creates the required project-category relationships. The foreign keys ensure that every association refers to an existing project and category.
+
+============================================================
+TOPIC 2: SERVER-SIDE DATA ACCESS LOGIC IN NODE.JS
+============================================================
+
+Coach: Database queries are separated into model files. The categories model is stored in src/models/categories.js.
+
+Relevant Node.js function:
+
+import db from './db.js';
+
+const getAllCategories = async () => {
+    const query = `
+        SELECT category_id, name
+        FROM category
+        ORDER BY name;
+    `;
+
+    const result = await db.query(query);
+
+    return result.rows;
+};
+
+export { getAllCategories };
+
+Student: getAllCategories is an asynchronous function that sends a SELECT query to PostgreSQL through the shared db connection. The query retrieves the category_id and name columns and sorts the results alphabetically by name. The result object returned by PostgreSQL contains the rows, and the function returns result.rows as an array of category records.
+
+The query is kept in src/models/categories.js instead of server.js because this separates database access from HTTP routing. This organization makes the project easier to understand, test, maintain, and reuse. The server route can focus on receiving the request and rendering the response, while the model focuses on retrieving data.
+
+The same pattern is used for getAllOrganizations in src/models/organizations.js and getAllProjects in src/models/projects.js.
+
+============================================================
+TOPIC 3: EXPRESS SERVER LOGIC AND ROUTING
+============================================================
+
+Coach: Express maps a URL path and HTTP method to a route handler. The handler retrieves the necessary data, prepares the view data, and renders the correct EJS page.
+
+Relevant route from server.js:
+
+app.get('/categories', async (req, res) => {
+    const categories = await getAllCategories();
+    const title = 'Service Project Categories';
+    res.render('categories', { title, categories });
+});
+
+Student: When a user visits /categories with a GET request, Express matches the request to this route. The async handler calls getAllCategories and waits for the database results. The returned rows are stored in the categories variable. The route also creates the page title and passes both title and categories to the categories EJS view through res.render.
+
+Express then uses the EJS view engine to generate HTML and sends that HTML response back to the browser. The same flow is used for /organizations and /projects, with each route calling its corresponding model function.
+
+============================================================
+TOPIC 4: CLIENT-SIDE RENDERING WITH EJS
+============================================================
+
+Coach: EJS is the template engine used by the Express application. The route sends database data to the template, and EJS combines that data with HTML on the server before the page is sent to the browser.
+
+Relevant code from src/views/categories.ejs:
+
+<% categories.forEach(category => { %>
+    <li><strong><%= category.name %></strong></li>
+<% }) %>
+
+Student: The categories variable is an array passed from the route. The forEach loop processes each category record and creates one list item for each category. The expression <%= category.name %> displays the category name in the HTML. The equals sign means the value is output and escaped, which helps prevent unsafe HTML from being inserted.
+
+The application also uses <%- include('partials/header') %> and <%- include('partials/footer') %> for trusted partial templates. The <%- syntax renders unescaped HTML, which is appropriate for trusted template partials. Regular database text is displayed with <%= ... %> so it is escaped safely.
+
+The projects page uses the same data flow. The projects route passes projects to projects.ejs, and the template loops through the projects to display a user-friendly date, project title, description, and organization name.
+
+============================================================
+END-TO-END SUMMARY
+============================================================
+
+Coach: The complete data flow is:
+
+1. PostgreSQL stores organizations, service projects, categories, and project-category relationships.
+2. Model functions such as getAllCategories query the database through the shared db module.
+3. Express route handlers call the model functions with await.
+4. The route handlers pass the returned arrays to EJS using res.render.
+5. EJS loops through the arrays and produces the final HTML shown in the browser.
+
+Student: The design keeps each responsibility separate. The database enforces relationships with primary keys and foreign keys. Node.js models retrieve data. Express routes control request paths and page rendering. EJS displays the data dynamically.
+
+Coach: The Week 2 implementation includes database-backed organizations, service projects, and categories. Each service project has an organization, every project has at least one category, and the category page displays category names retrieved from PostgreSQL rather than hard-coded values.
+
+Session completed.
