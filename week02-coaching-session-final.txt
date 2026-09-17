@@ -1,30 +1,37 @@
-CSE 340 Week 02 Coaching Session
+CSE 340 WEEK 02 COACHING SESSION
 Database Entities and End-to-End Data Flow
 
 Student: Allan Ogwal
-Role: Learning Coach and Software Mentor
-Date: September 15, 2026
-Estimated discussion length: approximately 30-45 minutes
+Date: September 17, 2026
+Estimated discussion time: approximately 30-45 minutes
 
-Note: This document summarizes the coaching discussion about the completed Week 2 project. It includes the required technical topics, code snippets, and explanations.
 
-============================================================
-INTRODUCTION
-============================================================
+OPENING
+
 
 Coach: Welcome! Just to be clear from the start, this is a coaching session, not a test. It is perfectly okay—and even encouraged—to say "I don't know" or "I made a mistake." That's the fastest way we'll learn today.
 
-Coach: The purpose of this session is to discuss how the database, Node.js model functions, Express routes, and EJS templates work together in the service project application.
+Coach: I am your Learning Coach and Software Mentor. We will discuss how your Week 2 application moves data from PostgreSQL through Node.js and Express into EJS templates. We will cover database design, server-side data access, Express routing, and EJS rendering. I can reference the project files directly because this session is taking place in VS Code.
+
+Coach: What name should I use during this session?
 
 Student: My name is Allan Ogwal.
+
+Coach: Before we begin, what is the main purpose of the Week 2 changes in your application?
+
+Student: The purpose was to add service projects and categories to the application and connect the database all the way through the Node.js models, Express routes, and EJS pages. The pages should display data from PostgreSQL instead of using hard-coded lists.
 
 ============================================================
 TOPIC 1: RELATIONAL DATABASE DESIGN AND STRUCTURE
 ============================================================
 
-Coach: The application uses organizations, service projects, categories, and a junction table. Each service project belongs to one organization. Categories and projects have a many-to-many relationship.
+Coach: Let us start with the database design. Which tables are involved in the service-project and category features, and what relationship must the database support?
 
-Relevant SQL from src/setup.sql:
+Student: The main tables are organization, service_project, category, and project_category. Each service project belongs to one organization, so service_project has an organization_id foreign key. Projects and categories have a many-to-many relationship: one project can have more than one category, and one category can be assigned to more than one project. The project_category table is the junction table that stores those associations.
+
+Coach: Please share a non-trivial SQL snippet that shows how you modeled the category relationship, and explain the constraints.
+
+Student: This is from src/setup.sql:
 
 CREATE TABLE category (
     category_id SERIAL PRIMARY KEY,
@@ -47,11 +54,15 @@ CREATE TABLE project_category (
         ON UPDATE CASCADE
 );
 
-Student: The category table stores each category once. The category_id is the primary key, and the name is unique so duplicate category names cannot be inserted. The project_category table is a junction table connecting service_project and category.
+The category table has a unique ID and a unique name. The project_category table has two foreign keys, one to service_project and one to category. Its composite primary key prevents the same project and category from being associated more than once. The foreign keys prevent invalid IDs from being inserted. The cascade behavior removes relationship rows when their related project or category is deleted.
 
-A project can belong to multiple categories, and a category can be assigned to multiple projects. The composite primary key, made from project_id and category_id, prevents the same association from being entered twice. A single category_id column inside service_project would only allow one category for each project, so it would not support the required many-to-many relationship.
+Coach: Why did you use a junction table instead of putting one category_id column directly in service_project?
 
-One relevant association query is:
+Student: A single category_id column would allow only one category for each project. That would not satisfy the requirement that a project can belong to one or more categories. The junction table allows multiple rows for one project and also allows one category to be used by many projects. It is the correct normalized design for a many-to-many relationship.
+
+Coach: Show one relevant SQL statement that associates existing projects with categories. What does it do?
+
+Student: One example from src/setup.sql is:
 
 INSERT INTO project_category (project_id, category_id)
 SELECT service_project.project_id, category.category_id
@@ -64,15 +75,33 @@ WHERE category.name = 'Food Security'
       'Holiday Giving Project'
   );
 
-Student: This query finds the IDs from the existing tables by name and creates the required project-category relationships. The foreign keys ensure that every association refers to an existing project and category.
+This looks up the IDs using the names, then inserts the associations for the matching projects. It avoids hard-coding numeric IDs. The foreign keys make sure that the selected project and category rows exist.
+
+Coach: How did you verify that every project was associated with at least one category?
+
+Student: I used a query that counts projects for which no matching project_category row exists:
+
+SELECT COUNT(*) AS projects_without_categories
+FROM service_project
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM project_category
+    WHERE project_category.project_id = service_project.project_id
+);
+
+The result was zero. The database contained four categories and twenty-one project-category associations, and every service project had at least one category.
 
 ============================================================
 TOPIC 2: SERVER-SIDE DATA ACCESS LOGIC IN NODE.JS
 ============================================================
 
-Coach: Database queries are separated into model files. The categories model is stored in src/models/categories.js.
+Coach: Now let us follow the data after it leaves PostgreSQL. Which file contains the category database function, and what does that function return?
 
-Relevant Node.js function:
+Student: The function is in src/models/categories.js. It returns result.rows, which is an array of category objects from the database. Each object contains category_id and name.
+
+Coach: Please share the complete function and explain the flow line by line.
+
+Student: The function is:
 
 import db from './db.js';
 
@@ -90,19 +119,50 @@ const getAllCategories = async () => {
 
 export { getAllCategories };
 
-Student: getAllCategories is an asynchronous function that sends a SELECT query to PostgreSQL through the shared db connection. The query retrieves the category_id and name columns and sorts the results alphabetically by name. The result object returned by PostgreSQL contains the rows, and the function returns result.rows as an array of category records.
+The db import is the shared PostgreSQL connection from the database model. getAllCategories is asynchronous because a database query takes time and returns a promise. The query selects the category ID and name, and ORDER BY name sorts the rows alphabetically. await db.query(query) waits for PostgreSQL to return the result. The result object contains metadata and the rows. Returning result.rows gives the route only the records it needs for rendering. The export makes the function available to server.js.
 
-The query is kept in src/models/categories.js instead of server.js because this separates database access from HTTP routing. This organization makes the project easier to understand, test, maintain, and reuse. The server route can focus on receiving the request and rendering the response, while the model focuses on retrieving data.
+Coach: Why is the query in src/models/categories.js instead of directly inside server.js?
 
-The same pattern is used for getAllOrganizations in src/models/organizations.js and getAllProjects in src/models/projects.js.
+Student: Separating the query into a model keeps responsibilities organized. The model handles database access, while server.js handles HTTP routes and rendering. This makes the code easier to read, test, reuse, and maintain. It also follows the same naming and file pattern used for getAllOrganizations and getAllProjects.
+
+Coach: How does the project query differ from the category query?
+
+Student: The project query uses a JOIN because each project must display the sponsoring organization name. It selects project fields and organization.name AS organization_name. The category query does not need a join because the categories page only displays category names.
+
+Relevant project-query example from src/models/projects.js:
+
+const getAllProjects = async () => {
+    const query = `
+        SELECT
+            service_project.project_id,
+            service_project.title,
+            service_project.description,
+            service_project.project_date,
+            organization.name AS organization_name
+        FROM service_project
+        JOIN organization
+            ON service_project.organization_id = organization.organization_id
+        ORDER BY service_project.project_date;
+    `;
+
+    const result = await db.query(query);
+
+    return result.rows;
+};
+
+Student: The JOIN connects each project to its organization through organization_id. This lets the EJS page display the organization name without making a separate query for every project.
 
 ============================================================
 TOPIC 3: EXPRESS SERVER LOGIC AND ROUTING
 ============================================================
 
-Coach: Express maps a URL path and HTTP method to a route handler. The handler retrieves the necessary data, prepares the view data, and renders the correct EJS page.
+Coach: How does Express know which code should run when a user visits the categories page?
 
-Relevant route from server.js:
+Student: Express matches the HTTP method and URL path to a route declaration. A browser visit to /categories sends a GET request, so Express uses app.get('/categories', ...). The function receives the request and response objects. The handler gets the data, sets the title, and renders the categories view.
+
+Coach: Please share the specific route declaration from server.js and explain each important part.
+
+Student: The route is:
 
 app.get('/categories', async (req, res) => {
     const categories = await getAllCategories();
@@ -110,42 +170,112 @@ app.get('/categories', async (req, res) => {
     res.render('categories', { title, categories });
 });
 
-Student: When a user visits /categories with a GET request, Express matches the request to this route. The async handler calls getAllCategories and waits for the database results. The returned rows are stored in the categories variable. The route also creates the page title and passes both title and categories to the categories EJS view through res.render.
+app.get registers a handler for GET requests. The path /categories is the URL path. The async keyword is necessary because getAllCategories returns a promise. await pauses the handler until the database rows are available. The rows are stored in categories. res.render tells Express to render categories.ejs and passes title and categories as template data.
 
-Express then uses the EJS view engine to generate HTML and sends that HTML response back to the browser. The same flow is used for /organizations and /projects, with each route calling its corresponding model function.
+Coach: What would happen if the route called getAllCategories but did not pass categories to res.render?
+
+Student: The EJS template would not receive the categories variable. When it tried to run categories.forEach, it would likely produce an error because categories would be undefined. Passing the data object is the connection between the route and the template.
+
+Coach: How are the organizations and projects routes similar?
+
+Student: They use the same pattern. The organizations route awaits getAllOrganizations and renders organizations.ejs with title and organizations. The projects route awaits getAllProjects and renders projects.ejs with title and projects. The route handlers map URLs to the correct model and view.
+
+Relevant projects route:
+
+app.get('/projects', async (req, res) => {
+    const projects = await getAllProjects();
+    const title = 'Service Projects';
+    res.render('projects', { title, projects });
+});
+
+Student: This route makes the projects page dynamic. It retrieves the database rows first, then sends them to the EJS template rather than rendering the old hard-coded list.
 
 ============================================================
-TOPIC 4: CLIENT-SIDE RENDERING WITH EJS
+TOPIC 4: CLIENT-SIDE DISPLAY USING EJS TEMPLATES
 ============================================================
 
-Coach: EJS is the template engine used by the Express application. The route sends database data to the template, and EJS combines that data with HTML on the server before the page is sent to the browser.
+Coach: How does the data passed from Express become visible HTML in the browser?
 
-Relevant code from src/views/categories.ejs:
+Student: EJS is the template engine. Express passes the database data into the EJS view. EJS evaluates the JavaScript template tags on the server and creates normal HTML. The browser receives the generated HTML, not the EJS code itself.
+
+Coach: Please share a specific EJS snippet that loops through the database categories and displays each name.
+
+Student: The relevant code in src/views/categories.ejs is:
 
 <% categories.forEach(category => { %>
     <li><strong><%= category.name %></strong></li>
 <% }) %>
 
-Student: The categories variable is an array passed from the route. The forEach loop processes each category record and creates one list item for each category. The expression <%= category.name %> displays the category name in the HTML. The equals sign means the value is output and escaped, which helps prevent unsafe HTML from being inserted.
+The <% tags run JavaScript without directly outputting it. The forEach loop processes every object in the categories array. For each object, it creates one li element. The <%= category.name %> tag outputs the name and escapes it as HTML. Therefore, database categories become visible list items.
 
-The application also uses <%- include('partials/header') %> and <%- include('partials/footer') %> for trusted partial templates. The <%- syntax renders unescaped HTML, which is appropriate for trusted template partials. Regular database text is displayed with <%= ... %> so it is escaped safely.
+Coach: What is the difference between <%= ... %> and <%- ... %> in this project?
 
-The projects page uses the same data flow. The projects route passes projects to projects.ejs, and the template loops through the projects to display a user-friendly date, project title, description, and organization name.
+Student: <%= ... %> outputs a value and escapes HTML characters, so it is appropriate for database text such as category.name, project.title, and organization_name. <%- ... %> outputs unescaped HTML. The project uses it for trusted partial includes such as <%- include('partials/header') %> and <%- include('partials/footer') %>, because those partials contain HTML markup that must be interpreted as HTML instead of displayed as text.
+
+Coach: Share the project EJS snippet and explain how the date and organization are displayed.
+
+Student: The projects view uses:
+
+<% projects.forEach(project => { %>
+    <li>
+        <%= new Date(project.project_date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        }) %>:
+        <strong><%= project.title %></strong>
+        (<%= project.organization_name %>)
+        <p><%= project.description %></p>
+    </li>
+<% }) %>
+
+The loop creates one list item per project. The date is converted into a JavaScript Date and formatted in a user-friendly month-day-year style. The project title, organization name, and description come from the SQL query and are displayed with escaped EJS output tags.
 
 ============================================================
-END-TO-END SUMMARY
+END-TO-END REVIEW
 ============================================================
 
-Coach: The complete data flow is:
+Coach: Please explain the complete path of a category from the database to the browser.
 
-1. PostgreSQL stores organizations, service projects, categories, and project-category relationships.
-2. Model functions such as getAllCategories query the database through the shared db module.
-3. Express route handlers call the model functions with await.
-4. The route handlers pass the returned arrays to EJS using res.render.
-5. EJS loops through the arrays and produces the final HTML shown in the browser.
+Student: PostgreSQL stores the category row in the category table. The getAllCategories function in src/models/categories.js sends a SELECT query through the shared db module and returns result.rows. The /categories route in server.js awaits that function and passes the result to res.render. Express sends the categories data to categories.ejs. EJS loops through the array and creates an li element for each category. The browser receives and displays the generated HTML.
 
-Student: The design keeps each responsibility separate. The database enforces relationships with primary keys and foreign keys. Node.js models retrieve data. Express routes control request paths and page rendering. EJS displays the data dynamically.
+Coach: What is one design decision you understand better after reviewing this project?
 
-Coach: The Week 2 implementation includes database-backed organizations, service projects, and categories. Each service project has an organization, every project has at least one category, and the category page displays category names retrieved from PostgreSQL rather than hard-coded values.
+Student: I understand why each layer has a separate responsibility. The database constraints protect the data, model functions handle queries, Express routes handle requests and pass data, and EJS handles the HTML display. The junction table was especially important because it represents a many-to-many relationship correctly instead of storing multiple category values in one column.
 
-Session completed.
+Coach: What did you verify when testing the completed application?
+
+Student: I verified the database connection, confirmed that the service project and category tables contained data, and tested the database-backed routes. The organizations, projects, and categories pages rendered dynamic information. The projects page displayed dates, project titles, descriptions, and organization names. The categories page displayed category names from PostgreSQL.
+
+Coach: This completes the four required topics: relational database design, Node.js server-side data access, Express routing, and EJS rendering.
+
+Student: I can explain how the data flows through all four layers and why the database relationships and code organization were chosen.
+
+============================================================
+SESSION COMPLETION
+============================================================
+
+Topics completed:
+
+1. Relational Database Design and Structure
+   - Tables and relationships discussed.
+   - Many-to-many junction table explained.
+   - SQL table and association snippets included.
+
+2. Server-Side Data Access Logic
+   - getAllCategories function discussed.
+   - Query, await, result.rows, and module separation explained.
+   - Project JOIN query also discussed.
+
+3. Express Server Logic and Routing
+   - GET path mapping and async route behavior discussed.
+   - /categories and /projects route snippets included.
+   - Data passed through res.render explained.
+
+4. Client-Side Display Using EJS
+   - Data flow into EJS discussed.
+   - forEach loop and <%= category.name %> explained.
+   - Difference between <%= ... %> and <%- ... %> explained.
+   - Project date and organization rendering discussed.
+
+Session status: Completed.
