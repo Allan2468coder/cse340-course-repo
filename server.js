@@ -3,9 +3,7 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { testConnection } from './src/models/db.js';
-import { getAllOrganizations } from './src/models/organizations.js';
-import { getAllProjects, getProjectById, getProjectCategories } from './src/models/projects.js';
-import { getAllCategories, getCategoryById, getProjectsByCategoryId } from './src/models/categories.js';
+import router from './src/routes.js';
 
 // Define the application environment
 const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || 'production';
@@ -43,77 +41,8 @@ app.use((req, res, next) => {
     next();
 });
 
-/**
- * Routes
- */
-app.get('/', async (req, res) => {
-    const title = 'Home';
-    res.render('home', { title });
-});
-
-app.get('/organizations', async (req, res) => {
-  const organizations = await getAllOrganizations();
-
-    const title = 'Our Partner Organizations';
-    res.render('organizations', { title, organizations });
-});
-
-app.get('/projects', async (req, res) => {
-  const projects = await getAllProjects();
-    const title = 'Service Projects';
-  res.render('projects', { title, projects });
-});
-
-app.get('/categories', async (req, res) => {
-  const categories = await getAllCategories();
-    const title = 'Service Project Categories';
-  res.render('categories', { title, categories });
-});
-
-app.get('/category/:id', async (req, res) => {
-  const categoryId = Number(req.params.id);
-
-  if (Number.isNaN(categoryId)) {
-    return res.status(404).send('Category not found');
-  }
-
-  const category = await getCategoryById(categoryId);
-
-  if (!category) {
-    return res.status(404).send('Category not found');
-  }
-
-  const projects = await getProjectsByCategoryId(categoryId);
-  const title = category.name;
-
-  res.render('category', { title, category, projects });
-});
-
-app.get('/project/:id', async (req, res) => {
-  const projectId = Number(req.params.id);
-
-  if (Number.isNaN(projectId)) {
-    return res.status(404).send('Project not found');
-  }
-
-  const project = await getProjectById(projectId);
-
-  if (!project) {
-    return res.status(404).send('Project not found');
-  }
-
-  const categories = await getProjectCategories(projectId);
-  const title = project.title;
-
-  res.render('project', { title, project, categories });
-});
-
-// Test route for 500 errors
-app.get('/test-error', (req, res, next) => {
-    const err = new Error('This is a test error');
-    err.status = 500;
-    next(err);
-});
+// Use the imported router to handle routes
+app.use(router);
 
 // Catch-all route for 404 errors
 app.use((req, res, next) => {
@@ -124,22 +53,18 @@ app.use((req, res, next) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-    // Log error details for debugging
     console.error('Error occurred:', err.message);
     console.error('Stack trace:', err.stack);
-    
-    // Determine status and template
+
     const status = err.status || 500;
     const template = status === 404 ? '404' : '500';
-    
-    // Prepare data for the template
+
     const context = {
         title: status === 404 ? 'Page Not Found' : 'Server Error',
         error: err.message,
         stack: err.stack
     };
-    
-    // Render the appropriate error template
+
     res.status(status).render(`errors/${template}`, context);
 });
 
