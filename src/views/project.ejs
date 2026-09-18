@@ -2,16 +2,17 @@
 <main>
     <h1><%= title %></h1>
     <h2><%= project.title %></h2>
-    <p><strong>Date:</strong> <%= new Date(project.project_date).toLocaleDateString('en-US', {
+    <p><strong>Date:</strong> <%= new Date(project.date || project.project_date).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
     }) %></p>
-    <p><strong>Organization:</strong> <%= project.organization_name %></p>
+    <p><strong>Location:</strong> <%= project.location || 'Not specified' %></p>
+    <p><strong>Organization:</strong> <a href="/organization/<%= project.organization_id %>"><%= project.organization_name %></a></p>
     <p><strong>Description:</strong> <%= project.description %></p>
 
     <h3>Categories</h3>
-    <% if (categories.length > 0) { %>
+    <% if (categories && categories.length > 0) { %>
         <ul>
         <% categories.forEach(category => { %>
             <li><a href="/category/<%= category.category_id %>"><%= category.name %></a></li>
