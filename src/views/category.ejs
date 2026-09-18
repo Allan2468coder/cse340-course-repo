@@ -1,0 +1,20 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <h2><%= category.name %></h2>
+    <p>Projects in this category:</p>
+    <% if (projects.length > 0) { %>
+        <ul>
+        <% projects.forEach(project => { %>
+            <li>
+                <a href="/project/<%= project.project_id %>"><strong><%= project.title %></strong></a>
+                <p><%= project.description %></p>
+            </li>
+        <% }) %>
+        </ul>
+    <% } else { %>
+        <p>No projects found for this category.</p>
+    <% } %>
+    <p><a href="/categories">Back to Categories</a></p>
+</main>
+<%- include('partials/footer') %>

@@ -10,7 +10,7 @@
                 month: 'long',
                 day: 'numeric'
             }) %>:
-            <strong><%= project.title %></strong>
+            <a href="/project/<%= project.project_id %>"><strong><%= project.title %></strong></a>
             (<%= project.organization_name %>)
             <p><%= project.description %></p>
         </li>
