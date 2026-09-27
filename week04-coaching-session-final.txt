@@ -1,0 +1,380 @@
+W04 Coaching Session: Inserting and Updating Data
+Prepared coaching-session transcript draft
+
+Student: Ogwal Allan
+Project: CSE 340 Service Network application
+Target discussion time: 30-35 minutes when discussed interactively
+
+Preparation note: This is a prepared coaching-session draft based on the current project code. The time blocks are a pacing guide, not a claim that this text alone records 30 minutes of elapsed conversation. Before submitting, review the explanations, personalize the student responses, and make sure the actual coaching discussion meets the required duration.
+
+Session goals
+- Explain how HTML form data travels through Express middleware, routes, controllers, and models.
+- Explain how an edit form is populated from an existing database record.
+- Explain session state and one-time flash messages in this app.
+- Explain client-side and server-side validation, including why both are used.
+
+[00:00-05:00] Introduction and application architecture
+
+AI Coach: We are focusing on inserting and updating data today. Start with a short overview of your application and the MVC responsibilities involved when someone submits a form.
+
+Student (draft response): My application is an Express and EJS application backed by PostgreSQL. It displays service organizations, projects, and categories. The MVC structure separates responsibilities. A route maps an HTTP method and URL to a controller function. The controller reads request data, validates it, calls model functions, and chooses a response such as rendering a form or redirecting. The model contains database queries. The EJS view renders data into HTML. For example, a category POST route calls a category controller, and that controller calls a category model function to insert or update the row.
+
+AI Coach: Why not put the SQL query directly in the route or controller?
+
+Student (draft response): Keeping SQL in the model gives the database code one clear home. Controllers do not need to know SQL syntax or table details; they coordinate the request and response. This makes the code easier to test and maintain. It also follows the MVC organization we have used in the course. The route itself remains small and declarative.
+
+AI Coach: What is the main difference between an HTTP GET request and a POST request in these workflows?
+
+Student (draft response): GET requests retrieve a page or resource. A GET request to `/new-category` displays the blank create form. A GET request to `/edit-category/1` retrieves category 1 and displays its existing name in a form. POST requests submit the form data to create or update a database record. The update form posts to a route that includes the record ID, such as `/edit-category/1`. The POST request changes server state, so it is not appropriate to use GET for the database update.
+
+AI Coach: Good. As we look at each topic, keep track of where request data originates, where it is validated, and where persistent data is changed.
+
+[00:05-12:00] 1. Handling Form Submissions
+
+AI Coach: Show the middleware that makes a regular HTML form submission available to your Express route. What would happen if that middleware were missing?
+
+Student (draft response): In `server.js`, I register URL-encoded body parsing before the router:
+
+```js
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(session({
+    secret: randomBytes(32).toString('hex'),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: 'auto',
+        maxAge: 30 * 60 * 1000
+    }
+}));
+app.use(flash());
+
+app.use(router);
+```
+
+The browser sends a standard form with an URL-encoded body. `express.urlencoded` parses that body and makes the submitted fields available on `req.body`. Middleware ordering matters: the body parser needs to run before the route handler tries to read the fields. Without it, `req.body` may be undefined or empty, so my controller would not receive the submitted name, date, description, or organization ID.
+
+AI Coach: Show how a route connects a POST form submission to a controller. Then explain how the controller passes the values to the model.
+
+Student (draft response): The routes are in `src/routes.js`, not in `server.js`:
+
+```js
+router.get('/new-category', showNewCategoryPage);
+router.post('/new-category', createCategoryAction);
+router.get('/edit-category/:id', showEditCategoryPage);
+router.post('/edit-category/:id', updateCategoryAction);
+```
+
+The route selects a controller based on the HTTP method and path. In the project controller, I create a plain object from the body, trim strings, validate it, and then pass it to a model function:
+
+```js
+const readProjectForm = (body) => ({
+    title: String(body.title || '').trim(),
+    description: String(body.description || '').trim(),
+    project_date: String(body.project_date || '').trim(),
+    organization_id: Number(body.organization_id)
+});
+
+const createProjectAction = async (req, res) => {
+    const project = readProjectForm(req.body);
+    const errors = await validateProject(project);
+
+    if (Object.keys(errors).length) {
+        return projectForm(res, {
+            title: 'Create Service Project',
+            heading: 'Create a Service Project',
+            action: '/new-project',
+            project,
+            errors
+        }, 400);
+    }
+
+    await createProject(project);
+    req.flash('success', 'Service project created successfully.');
+    res.redirect('/projects');
+};
+```
+
+The controller reads `req.body` and converts the values into the shape the model expects. It does not write SQL itself. The `createProject` model function receives the object and inserts the fields into PostgreSQL. If validation fails, the controller renders the form again with the attempted values and errors. If it succeeds, the controller flashes a success message and redirects.
+
+AI Coach: Why do you normalize values in the controller instead of trusting the form controls?
+
+Student (draft response): Browser controls improve the user experience but they are not a security boundary. A user can disable browser validation or send a custom HTTP request. The server must treat every request value as untrusted. Converting values to expected types, trimming strings, and validating on the server makes the controller-to-model contract more predictable. The database also enforces constraints, but those are a final safeguard rather than a replacement for helpful server-side errors.
+
+AI Coach: How does the model safely use form values in SQL?
+
+Student (draft response): The model uses PostgreSQL placeholders instead of concatenating user input into the query:
+
+```js
+const createProject = async ({ title, description, project_date, organization_id }) => {
+    const query = `
+        INSERT INTO service_project
+            (title, description, project_date, organization_id)
+        VALUES ($1, $2, $3, $4)
+        RETURNING project_id, title, description, project_date, organization_id;
+    `;
+
+    const result = await db.query(query, [
+        title,
+        description,
+        project_date,
+        organization_id
+    ]);
+
+    return result.rows[0];
+};
+```
+
+The values are passed separately from the SQL string. The database driver binds them to `$1` through `$4`. This reduces SQL injection risk and makes the model function responsible for the persistence operation. `RETURNING` gives the application the created row if it needs the generated ID or the saved values.
+
+AI Coach: What is an issue with parsing the organization ID?
+
+Student (draft response): `Number(body.organization_id)` can produce `NaN` if the value is missing or malformed. My validator needs to check that the value is an integer greater than zero and that it references a real organization. The database foreign key is another layer of protection. It is important to validate before inserting so the user sees a useful form error instead of an unhelpful database failure.
+
+AI Coach: Summarize the full request path.
+
+Student (draft response): The user fills in the EJS form. The browser sends an HTTP POST. Express URL-encoded middleware parses the request body. The router dispatches the method and URL to the proper controller. The controller normalizes and validates the data. The model issues a parameterized query. Then the controller sets a flash message and redirects, or it renders the form again with errors. The database query is not placed in the view or route file.
+
+[00:12-19:00] 2. Forms for Updates
+
+AI Coach: An edit form must show the existing database values. Describe the GET flow before any changes are submitted.
+
+Student (draft response): The browser requests a URL containing the entity ID, for example `/edit-project/1`. The route passes the request to `showEditProjectPage`. The controller validates that the ID is a positive integer, fetches the project through `getProjectById`, returns a 404 if it does not exist, and renders the EJS form with the project object. The view uses the project object's properties to fill in the input values and selected organization.
+
+AI Coach: Show a relevant EJS excerpt. What does EJS output syntax do here?
+
+Student (draft response): In `src/views/project-form.ejs`, the project title and description are inserted into the form:
+
+```ejs
+<div class="form-field">
+    <label for="title">Project title</label>
+    <input
+        type="text"
+        id="title"
+        name="title"
+        value="<%= project.title %>"
+        required
+        minlength="3"
+        maxlength="150">
+</div>
+
+<div class="form-field">
+    <label for="description">Description</label>
+    <textarea id="description" name="description" required minlength="3"><%= project.description %></textarea>
+</div>
+```
+
+The `<%=` EJS tag evaluates the expression and HTML-escapes the result. That matters because the displayed value came from persistent data, and escaped output helps prevent markup from being interpreted as HTML. The `name` attributes are important too: those are the keys that are submitted in the POST body. The `id` attributes connect labels to controls for accessibility, but they are not what determines the request-body property names.
+
+AI Coach: How is an existing organization selected in the dropdown?
+
+Student (draft response): The controller loads organizations and passes them to the form. The EJS template loops through them and compares each organization ID with the project's current `organization_id`:
+
+```ejs
+<select id="organization_id" name="organization_id" required>
+    <option value="">Select an organization</option>
+    <% organizations.forEach(organization => { %>
+        <option
+            value="<%= organization.organization_id %>"
+            <%= String(project.organization_id) === String(organization.organization_id)
+                ? 'selected'
+                : '' %>>
+            <%= organization.name %>
+        </option>
+    <% }) %>
+</select>
+```
+
+The matching option receives the HTML `selected` attribute. I compare as strings because the database may return an integer while an HTML form value is a string. This means the user sees the currently saved organization when the edit page loads, but can choose another organization before saving.
+
+AI Coach: What is the difference between the `:id` in the route and the values in `req.body`?
+
+Student (draft response): The `:id` is a route parameter. Express makes it available as `req.params.id`, and it identifies which existing record to update. The form fields are submitted in the request body and are available as `req.body.title`, `req.body.description`, and similar properties after the URL-encoded middleware runs. The route ID tells the update query which row to target; the request body contains the new field values.
+
+AI Coach: What does the update model do after the user submits the form?
+
+Student (draft response): The controller validates the route ID and the submitted fields. Then it calls a model such as `updateProject(projectId, project)`. The model uses a parameterized `UPDATE service_project SET ... WHERE project_id = $1 RETURNING ...` query. If the query returns no row, the controller responds that the project was not found. Otherwise, it sets a success flash and redirects to the detail page. An edit form should not silently create a new row; it should update only the row identified by the URL parameter.
+
+AI Coach: What happens when validation fails on an edit form?
+
+Student (draft response): The controller renders the same edit view with the submitted values and an errors object, instead of redirecting and losing what the user typed. It keeps the edit action URL with that project's ID, so correcting the values will still update the same record. The view shows a field-level error near the relevant control. It is important that the server-rendered template receive all of its expected data, such as the project, organizations, action URL, and errors.
+
+AI Coach: Why do you redirect after a successful POST instead of rendering the result immediately?
+
+Student (draft response): Redirect-after-POST prevents a browser refresh from resubmitting the same form. The browser follows the redirect with a GET request to the list or detail page. This is sometimes called the Post/Redirect/Get pattern. The database update happens once, and the destination page can display the result and the flash message.
+
+[00:19-25:00] 3. Sessions and Flash Messages
+
+AI Coach: Explain the difference between a normal request and session state. Why is session middleware included?
+
+Student (draft response): HTTP requests are independent by default. The server does not automatically remember that a later request comes from the same browser or that a message should be shown after a redirect. A session provides server-side state associated with the browser through a session cookie. In my app, `express-session` provides `req.session`, and `connect-flash` stores short-lived messages in that session. The cookie identifies the session; the flash message itself is not placed into a query string or exposed in the URL.
+
+AI Coach: Show the middleware setup and explain why order matters.
+
+Student (draft response): In `server.js`, the session middleware is installed before `connect-flash` and before the application router:
+
+```js
+app.use(express.urlencoded({ extended: true }));
+app.set('trust proxy', 1);
+app.use(session({
+    secret: randomBytes(32).toString('hex'),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: 'auto',
+        maxAge: 30 * 60 * 1000
+    }
+}));
+app.use(flash());
+
+app.use((req, res, next) => {
+    res.locals.NODE_ENV = NODE_ENV;
+    res.locals.successMessages = req.flash('success');
+    next();
+});
+
+app.use(router);
+```
+
+The session middleware must run before `connect-flash` because flash messages use the session. Both need to run before the controllers so a controller can call `req.flash`. The local middleware reads the success messages and makes them available to all EJS templates as `successMessages`. Reading a flash message consumes it, so the message is intended to appear once.
+
+AI Coach: Show how one success message is created and then displayed.
+
+Student (draft response): After a successful category insert, the controller sets a flash message and redirects:
+
+```js
+await createCategory(category.name);
+req.flash('success', 'Category created successfully.');
+res.redirect('/categories');
+```
+
+The shared flash partial displays the message on the next page:
+
+```ejs
+<% if (successMessages && successMessages.length > 0) { %>
+    <div class="flash-message" role="status" aria-live="polite">
+        <% successMessages.forEach(message => { %>
+            <p><%= message %></p>
+        <% }) %>
+    </div>
+<% } %>
+```
+
+The shared header includes this partial, so success messages appear consistently after create, edit, or category-assignment operations. The message is inserted with `<%= ... %>`, which escapes it. `role="status"` and `aria-live="polite"` help assistive technology announce the new status without interrupting the user.
+
+AI Coach: Why use a flash message instead of putting `?saved=true` in the redirect URL?
+
+Student (draft response): Flash messages are temporary server-side messages associated with one session. The application can display them once and then clear them. That avoids adding the message content to the URL and avoids having success state remain in bookmarks or appear on every refresh. A query parameter can be useful for some designs, but it is not as naturally one-time as a flash message.
+
+AI Coach: What production caveat did you observe with the session configuration?
+
+Student (draft response): The app currently generates a random session signing value when the server starts. It avoids requiring an extra environment variable just to deploy the assignment, but sessions become invalid after a process restart because the signing value changes. Also, express-session's default MemoryStore is for development and is not suitable for a multi-instance production system. The app's flash messages are brief, so the main visible effect is that an in-flight or recently created flash may disappear if the service restarts. A larger production app should use a stable secret supplied by the host and a persistent session store. The coursework rubric asks us to use sessions and flash messages; it does not prescribe a production session-store product.
+
+AI Coach: That is a useful distinction. The implementation demonstrates session-backed flash behavior, and you can identify the scaling limitation without confusing it with the purpose of flash messages.
+
+[00:25-30:00] 4. Server-side Validation
+
+AI Coach: Why do you validate on the server if the HTML form already has `required`, `maxlength`, `minlength`, or `type="date"`?
+
+Student (draft response): Client-side validation gives immediate feedback and makes the form easier to use, but it can be bypassed. A user can turn off JavaScript, alter the HTML, or send an HTTP request directly. The server is the authority for accepting data, so it must validate all untrusted input before calling the model. The database constraints protect data integrity as a final layer, but server validation lets the app show clear errors rather than relying on database exceptions for normal input mistakes.
+
+AI Coach: Show your category validation. Be precise about the assignment's different client-side and server-side requirements.
+
+Student (draft response): The category form uses the browser's required and maximum-length checks:
+
+```ejs
+<input
+    type="text"
+    id="name"
+    name="name"
+    value="<%= category.name %>"
+    required
+    maxlength="100">
+```
+
+It intentionally does not have `minlength`. The server validates presence, a minimum of 3 characters, and a maximum of 100 characters after trimming:
+
+```js
+const validateCategory = (name) => {
+    const errors = {};
+
+    if (!name) {
+        errors.name = 'Category name is required.';
+    } else if (name.length < 3) {
+        errors.name = 'Category name must be at least 3 characters.';
+    } else if (name.length > 100) {
+        errors.name = 'Category name must be 100 characters or fewer.';
+    }
+
+    return errors;
+};
+
+const createCategoryAction = async (req, res) => {
+    const category = { name: String(req.body.name || '').trim() };
+    const errors = validateCategory(category.name);
+    if (Object.keys(errors).length > 0) {
+        return res.status(400).render('category-form', {
+            title: 'Create Category',
+            heading: 'Create a Category',
+            action: '/new-category',
+            category,
+            errors
+        });
+    }
+    // The model insert and success redirect follow after validation.
+};
+```
+
+The category edit POST uses the same validation function, so create and edit have the same server-side rules. The `trim()` means a value made only of spaces becomes an empty string and fails the required check. A two-character value fails the server-side minimum even though the browser allows it, which is intentional for testing the server rule.
+
+AI Coach: What does the 400 status communicate, and why render instead of redirecting when there are errors?
+
+Student (draft response): HTTP 400 means the submitted request has invalid client input. Rendering the form lets the server send the entered value back together with field-level errors, so the user can correct it. If I redirected, I would need another mechanism to preserve both the submitted values and the errors. On success, the request is valid, so the controller stores a flash message and redirects instead.
+
+AI Coach: How do you validate a project date and organization selection?
+
+Student (draft response): The project controller verifies that the date has the `YYYY-MM-DD` shape and represents a real calendar date. It also checks that the organization ID is a positive integer and that `getOrganizationById` finds a matching row. The form uses `type="date"` and `required` for client-side help, while the server still repeats those checks. The model's foreign key provides another integrity check, but validating the ID first lets the application return a field error.
+
+AI Coach: Are uniqueness rules also part of validation?
+
+Student (draft response): Category names have a unique database constraint. The category controller catches PostgreSQL error code `23505` and re-renders the form with a useful message when a duplicate name is submitted. This is important because two requests can race: a pre-check by itself would not guarantee uniqueness. The database constraint is authoritative, and the controller translates that specific database error into a form-level response.
+
+AI Coach: What is your general validation sequence?
+
+Student (draft response): First, the controller normalizes the request values, such as trimming text and converting numeric IDs. Then it checks required fields, lengths, formats, date validity, and references to related records. If there are errors, it renders the same form with the values and messages. If the values pass, it calls the model. The model uses parameterized SQL, and the database constraints protect relationships and uniqueness. That is defense in depth: browser validation for usability, server validation for trust, and database constraints for integrity.
+
+[00:30-33:00] Review and reflection
+
+AI Coach: I will give you four short scenarios. Explain which part of the application handles each one.
+
+AI Coach: A visitor submits `/new-category` with a blank name.
+
+Student (draft response): The POST route dispatches to `createCategoryAction`. The controller reads `req.body.name`, trims it, and `validateCategory` returns a required-field error. The controller responds with status 400 and renders the category form with the error. The model is not called, so no database insert happens.
+
+AI Coach: A visitor opens `/edit-project/2`.
+
+Student (draft response): The GET route calls `showEditProjectPage`. The controller gets `2` from `req.params.id`, fetches the project with a model function, then loads organizations for the dropdown and renders the project form. EJS inserts the current project fields and marks the project's current organization option as selected.
+
+AI Coach: A valid edit succeeds. How does the user see confirmation?
+
+Student (draft response): The controller calls the update model, queues a success message with `req.flash('success', ...)`, and redirects to the project detail URL. Session and flash middleware preserve that message across the redirect, and the shared flash partial displays it on the next GET.
+
+AI Coach: A user unchecks every category on the assignment form and saves. What should happen?
+
+Student (draft response): No checkbox values are sent, so the body has no `categoryIds` property. The controller normalizes that to an empty array, which means the user intentionally selected none. The model removes the project's existing junction-table rows and inserts no new rows. The controller flashes confirmation and redirects to project details. The form must distinguish an omitted checkbox collection as an empty selection, not treat it as malformed input.
+
+AI Coach: Summarize what you learned about server-side programming in this assignment.
+
+Student (draft response): I learned that a server-side form workflow is a sequence across several layers, not just an HTML form and an SQL statement. The browser sends named fields; Express middleware parses them; routes choose controllers; controllers validate and coordinate; models perform parameterized queries; and EJS renders either the form or the result. Edit forms need the record ID as well as the submitted fields. Sessions allow a short-lived message to survive a redirect, and flash messages consume that message after display. Validation belongs on both client and server, but only server-side validation can be trusted. Database constraints remain essential for uniqueness and relationships.
+
+AI Coach: What are two practical limitations you would monitor if this application grew beyond a class project?
+
+Student (draft response): First, I would configure a stable session signing secret and use a persistent session store instead of express-session's default in-memory store. Second, I would add automated tests for both successful and invalid submissions, including tests for missing records, duplicate category names, invalid foreign keys, and category assignment insert/delete behavior. I would also review deployment logs and verify the live database configuration after every deployment.
+
+AI Coach: That is a complete review. You connected HTTP form handling, MVC boundaries, edit-form population, sessions and flash messages, and server-side validation to the code rather than describing the concepts only in general terms.
+
+End of prepared transcript draft.
