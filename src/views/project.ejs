@@ -2,6 +2,8 @@
 <main>
     <h1><%= title %></h1>
     <h2><%= project.title %></h2>
+    <p><a href="/edit-project/<%= project.project_id %>">Edit Service Project</a></p>
+    <p><a href="/assign-categories/<%= project.project_id %>">Update Project Categories</a></p>
     <p><strong>Date:</strong> <%= new Date(project.date || project.project_date).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',

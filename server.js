@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
+import session from 'express-session';
+import flash from 'connect-flash';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { testConnection } from './src/models/db.js';
@@ -7,6 +9,12 @@ import router from './src/routes.js';
 
 // Define the application environment
 const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || 'production';
+const SESSION_SECRET = process.env.SESSION_SECRET
+  || (NODE_ENV === 'development' ? 'cse340-development-secret' : null);
+
+if (!SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be configured outside development.');
+}
 
 // Define the port number the server will listen on
 const PORT = process.env.PORT || 3000;
@@ -20,6 +28,15 @@ const app = express();
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.set('trust proxy', 1);
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'lax', secure: 'auto', maxAge: 30 * 60 * 1000 }
+}));
+app.use(flash());
 
 // Set EJS as the templating engine
 app.set('view engine', 'ejs');
@@ -38,6 +55,7 @@ app.use((req, res, next) => {
 // Middleware to make NODE_ENV available to all templates
 app.use((req, res, next) => {
     res.locals.NODE_ENV = NODE_ENV;
+  res.locals.successMessages = req.flash('success');
     next();
 });
 

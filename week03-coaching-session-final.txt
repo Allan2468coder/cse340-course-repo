@@ -162,18 +162,3 @@ This project includes:
 
 So I believe my work is complete and meets the rubric requirements.
 
-Overall Score
-
-AI Coach: Final score?
-
-Ogwal Allan:
-Overall Score: 25/25
-
-Reason:
-- Models: Complete
-- Views: Complete
-- Controllers: Complete
-- Error Handling: Complete
-- All rubric rows are marked complete
-
-This submission meets the full rubric requirements for the coaching session.

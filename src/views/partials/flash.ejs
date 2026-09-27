@@ -1,0 +1,7 @@
+<% if (successMessages && successMessages.length > 0) { %>
+    <div class="flash-message" role="status" aria-live="polite">
+        <% successMessages.forEach(message => { %>
+            <p><%= message %></p>
+        <% }) %>
+    </div>
+<% } %>

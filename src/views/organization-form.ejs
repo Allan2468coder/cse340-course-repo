@@ -1,0 +1,30 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <h2><%= heading %></h2>
+    <form action="<%= action %>" method="post">
+        <div class="form-field">
+            <label for="name">Organization name</label>
+            <input type="text" id="name" name="name" value="<%= organization.name %>" required minlength="3" maxlength="150" aria-describedby="name-error">
+            <% if (errors.name) { %><p class="field-error" id="name-error" role="alert"><%= errors.name %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" required minlength="3" aria-describedby="description-error"><%= organization.description %></textarea>
+            <% if (errors.description) { %><p class="field-error" id="description-error" role="alert"><%= errors.description %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="contact_email">Contact email</label>
+            <input type="email" id="contact_email" name="contact_email" value="<%= organization.contact_email %>" required maxlength="255" aria-describedby="contact-email-error">
+            <% if (errors.contact_email) { %><p class="field-error" id="contact-email-error" role="alert"><%= errors.contact_email %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="logo_filename">Logo filename</label>
+            <input type="text" id="logo_filename" name="logo_filename" value="<%= organization.logo_filename %>" required maxlength="255" aria-describedby="logo-error">
+            <% if (errors.logo_filename) { %><p class="field-error" id="logo-error" role="alert"><%= errors.logo_filename %></p><% } %>
+        </div>
+        <button type="submit">Save Organization</button>
+        <a href="/organizations">Cancel</a>
+    </form>
+</main>
+<%- include('partials/footer') %>

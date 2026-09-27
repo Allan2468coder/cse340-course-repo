@@ -1,0 +1,35 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <h2><%= heading %></h2>
+    <form action="<%= action %>" method="post">
+        <div class="form-field">
+            <label for="title">Project title</label>
+            <input type="text" id="title" name="title" value="<%= project.title %>" required minlength="3" maxlength="150" aria-describedby="title-error">
+            <% if (errors.title) { %><p class="field-error" id="title-error" role="alert"><%= errors.title %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" required minlength="3" aria-describedby="description-error"><%= project.description %></textarea>
+            <% if (errors.description) { %><p class="field-error" id="description-error" role="alert"><%= errors.description %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="project_date">Project date</label>
+            <input type="date" id="project_date" name="project_date" value="<%= project.project_date %>" required aria-describedby="date-error">
+            <% if (errors.project_date) { %><p class="field-error" id="date-error" role="alert"><%= errors.project_date %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="organization_id">Organization</label>
+            <select id="organization_id" name="organization_id" required aria-describedby="organization-error">
+                <option value="">Select an organization</option>
+                <% organizations.forEach(organization => { %>
+                    <option value="<%= organization.organization_id %>" <%= String(project.organization_id) === String(organization.organization_id) ? 'selected' : '' %>><%= organization.name %></option>
+                <% }) %>
+            </select>
+            <% if (errors.organization_id) { %><p class="field-error" id="organization-error" role="alert"><%= errors.organization_id %></p><% } %>
+        </div>
+        <button type="submit">Save Project</button>
+        <a href="/projects">Cancel</a>
+    </form>
+</main>
+<%- include('partials/footer') %>

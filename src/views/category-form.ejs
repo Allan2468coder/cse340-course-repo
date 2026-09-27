@@ -1,0 +1,25 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <h2><%= heading %></h2>
+    <form action="<%= action %>" method="post">
+        <div class="form-field">
+            <label for="name">Category name</label>
+            <input
+                type="text"
+                id="name"
+                name="name"
+                value="<%= category.name %>"
+                required
+                maxlength="100"
+                aria-describedby="name-error"
+                <%= errors.name ? 'aria-invalid="true"' : '' %>>
+            <% if (errors.name) { %>
+                <p class="field-error" id="name-error" role="alert"><%= errors.name %></p>
+            <% } %>
+        </div>
+        <button type="submit">Save Category</button>
+        <a href="/categories">Cancel</a>
+    </form>
+</main>
+<%- include('partials/footer') %>
