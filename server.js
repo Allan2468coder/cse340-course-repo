@@ -10,15 +10,6 @@ import router from './src/routes.js';
 
 // Define the application environment
 const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || 'production';
-const SESSION_SECRET = process.env.SESSION_SECRET || (
-    NODE_ENV === 'development'
-        ? 'cse340-development-secret'
-        : randomBytes(32).toString('hex')
-);
-
-if (!process.env.SESSION_SECRET && NODE_ENV !== 'development') {
-    console.warn('SESSION_SECRET is not set; using a temporary session secret for this process.');
-}
 
 // Define the port number the server will listen on
 const PORT = process.env.PORT || 3000;
@@ -35,7 +26,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
 app.use(session({
-  secret: SESSION_SECRET,
+  secret: randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: 'lax', secure: 'auto', maxAge: 30 * 60 * 1000 }
