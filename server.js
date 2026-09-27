@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import session from 'express-session';
 import flash from 'connect-flash';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { testConnection } from './src/models/db.js';
@@ -9,11 +10,14 @@ import router from './src/routes.js';
 
 // Define the application environment
 const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || 'production';
-const SESSION_SECRET = process.env.SESSION_SECRET
-  || (NODE_ENV === 'development' ? 'cse340-development-secret' : null);
+const SESSION_SECRET = process.env.SESSION_SECRET || (
+    NODE_ENV === 'development'
+        ? 'cse340-development-secret'
+        : randomBytes(32).toString('hex')
+);
 
-if (!SESSION_SECRET) {
-  throw new Error('SESSION_SECRET must be configured outside development.');
+if (!process.env.SESSION_SECRET && NODE_ENV !== 'development') {
+    console.warn('SESSION_SECRET is not set; using a temporary session secret for this process.');
 }
 
 // Define the port number the server will listen on
