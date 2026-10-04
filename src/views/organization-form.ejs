@@ -19,9 +19,14 @@
             <% if (errors.contact_email) { %><p class="field-error" id="contact-email-error" role="alert"><%= errors.contact_email %></p><% } %>
         </div>
         <div class="form-field">
-            <label for="logo_filename">Logo filename</label>
-            <input type="text" id="logo_filename" name="logo_filename" value="<%= organization.logo_filename %>" required maxlength="255" aria-describedby="logo-error">
+            <label for="logo_filename">Organization image</label>
+            <select id="logo_filename" name="logo_filename" required aria-describedby="logo-error">
+                <% organizationLogos.forEach(logo => { %>
+                    <option value="<%= logo.filename %>" <%= organization.logo_filename === logo.filename ? 'selected' : '' %>><%= logo.label %></option>
+                <% }) %>
+            </select>
             <% if (errors.logo_filename) { %><p class="field-error" id="logo-error" role="alert"><%= errors.logo_filename %></p><% } %>
+            <img class="organization-image-preview" src="/images/<%= organization.logo_filename %>" alt="Selected organization image preview">
         </div>
         <button type="submit">Save Organization</button>
         <a href="/organizations">Cancel</a>

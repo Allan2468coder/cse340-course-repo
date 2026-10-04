@@ -1,4 +1,5 @@
 // Import any needed model functions
+import { body, validationResult } from 'express-validator';
 import {
     getAllOrganizations,
     getOrganizationById,
@@ -6,6 +7,47 @@ import {
     updateOrganization
 } from '../models/organizations.js';
 import { getProjectsByOrganizationId } from '../models/projects.js';
+
+const ORGANIZATION_LOGOS = [
+    { filename: 'cse340-service-network.png', label: 'Service Network placeholder' },
+    { filename: 'brightfuture-logo.png', label: 'BrightFuture Builders' },
+    { filename: 'greenharvest-logo.png', label: 'GreenHarvest Growers' },
+    { filename: 'unityserve-logo.png', label: 'UnityServe Volunteers' }
+];
+const DEFAULT_ORGANIZATION_LOGO = ORGANIZATION_LOGOS[0].filename;
+const ORGANIZATION_LOGO_FILENAMES = ORGANIZATION_LOGOS.map(logo => logo.filename);
+
+const organizationValidationRules = [
+    body('name')
+        .trim()
+        .notEmpty().withMessage('Name is required.')
+        .bail()
+        .isLength({ min: 3, max: 150 }).withMessage('Name must be between 3 and 150 characters.'),
+    body('description')
+        .trim()
+        .notEmpty().withMessage('Description is required.')
+        .bail()
+        .isLength({ min: 3, max: 5000 }).withMessage('Description must be between 3 and 5000 characters.'),
+    body('contact_email')
+        .trim()
+        .notEmpty().withMessage('Contact email is required.')
+        .bail()
+        .isEmail().withMessage('Enter a valid email address.')
+        .bail()
+        .isLength({ max: 255 }).withMessage('Contact email must be 255 characters or fewer.'),
+    body('logo_filename')
+        .customSanitizer(value => value || DEFAULT_ORGANIZATION_LOGO)
+        .trim()
+        .notEmpty().withMessage('An organization image is required.')
+        .bail()
+        .isLength({ min: 1, max: 255 }).withMessage('Organization image filename must be 255 characters or fewer.')
+        .bail()
+        .isIn(ORGANIZATION_LOGO_FILENAMES).withMessage('Choose an available organization image.')
+];
+
+const getValidationErrors = (req) => Object.fromEntries(
+    Object.entries(validationResult(req).mapped()).map(([field, error]) => [field, error.msg])
+);
 
 // Define any controller functions
 const showOrganizationsPage = async (req, res) => {
@@ -36,7 +78,7 @@ const showOrganizationDetailsPage = async (req, res) => {
 
 const organizationForm = (res, { title, heading, action, organization, errors }, status = 200) => {
     res.status(status).render('organization-form', {
-        title, heading, action, organization, errors
+        title, heading, action, organization, errors, organizationLogos: ORGANIZATION_LOGOS
     });
 };
 
@@ -44,7 +86,12 @@ const showNewOrganizationPage = (req, res) => {
     organizationForm(res, {
         title: 'Create Organization', heading: 'Create an Organization',
         action: '/new-organization',
-        organization: { name: '', description: '', contact_email: '', logo_filename: '' },
+        organization: {
+            name: '',
+            description: '',
+            contact_email: '',
+            logo_filename: DEFAULT_ORGANIZATION_LOGO
+        },
         errors: {}
     });
 };
@@ -63,24 +110,6 @@ const showEditOrganizationPage = async (req, res) => {
     });
 };
 
-const validateOrganization = (organization) => {
-    const errors = {};
-    if (!organization.name) errors.name = 'Name is required.';
-    else if (organization.name.length < 3) errors.name = 'Name must be at least 3 characters.';
-    else if (organization.name.length > 150) errors.name = 'Name must be 150 characters or fewer.';
-    if (!organization.description) errors.description = 'Description is required.';
-    else if (organization.description.length < 3) errors.description = 'Description must be at least 3 characters.';
-    if (!organization.contact_email) errors.contact_email = 'Contact email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(organization.contact_email)) {
-        errors.contact_email = 'Enter a valid email address.';
-    } else if (organization.contact_email.length > 255) {
-        errors.contact_email = 'Contact email must be 255 characters or fewer.';
-    }
-    if (!organization.logo_filename) errors.logo_filename = 'Logo filename is required.';
-    else if (organization.logo_filename.length > 255) errors.logo_filename = 'Logo filename must be 255 characters or fewer.';
-    return errors;
-};
-
 const readOrganizationForm = (body) => ({
     name: String(body.name || '').trim(),
     description: String(body.description || '').trim(),
@@ -90,7 +119,7 @@ const readOrganizationForm = (body) => ({
 
 const createOrganizationAction = async (req, res) => {
     const organization = readOrganizationForm(req.body);
-    const errors = validateOrganization(organization);
+    const errors = getValidationErrors(req);
     if (Object.keys(errors).length) {
         return organizationForm(res, {
             title: 'Create Organization', heading: 'Create an Organization',
@@ -108,7 +137,7 @@ const updateOrganizationAction = async (req, res) => {
         return res.status(404).send('Organization not found');
     }
     const organization = readOrganizationForm(req.body);
-    const errors = validateOrganization(organization);
+    const errors = getValidationErrors(req);
     if (Object.keys(errors).length) {
         return organizationForm(res, {
             title: 'Edit Organization', heading: 'Edit Organization',
@@ -127,6 +156,7 @@ export {
     showOrganizationDetailsPage,
     showNewOrganizationPage,
     showEditOrganizationPage,
+    organizationValidationRules,
     createOrganizationAction,
     updateOrganizationAction
 };

@@ -1,4 +1,5 @@
 // Import any needed model functions
+import { body, validationResult } from 'express-validator';
 import {
     getUpcomingProjects,
     getProjectDetails,
@@ -10,6 +11,52 @@ import {
 } from '../models/projects.js';
 import { getAllOrganizations, getOrganizationById } from '../models/organizations.js';
 import { getAllCategories } from '../models/categories.js';
+
+const projectValidationRules = [
+    body('title')
+        .trim()
+        .notEmpty().withMessage('Title is required.')
+        .bail()
+        .isLength({ min: 3, max: 150 }).withMessage('Title must be between 3 and 150 characters.'),
+    body('description')
+        .trim()
+        .notEmpty().withMessage('Description is required.')
+        .bail()
+        .isLength({ min: 3, max: 5000 }).withMessage('Description must be between 3 and 5000 characters.'),
+    body('project_date')
+        .trim()
+        .notEmpty().withMessage('Project date is required.')
+        .bail()
+        .isLength({ min: 10, max: 10 }).withMessage('Enter a date in YYYY-MM-DD format.')
+        .bail()
+        .isISO8601({ strict: true }).withMessage('Enter a valid project date.'),
+    body('organization_id')
+        .trim()
+        .notEmpty().withMessage('Organization is required.')
+        .bail()
+        .isLength({ min: 1, max: 10 }).withMessage('Select a valid organization.')
+        .bail()
+        .isInt({ min: 1 }).withMessage('Select a valid organization.')
+        .bail()
+        .custom(async value => {
+            if (!await getOrganizationById(Number(value))) {
+                throw new Error('Select an existing organization.');
+            }
+            return true;
+        })
+];
+
+const projectCategoryValidationRules = [
+    body('categoryIds')
+        .optional()
+        .custom(value => (Array.isArray(value) ? value : [value])
+            .every(id => typeof id === 'string' && /^\d+$/.test(id)))
+        .withMessage('Category IDs must be valid integers.')
+];
+
+const getValidationErrors = (req) => Object.fromEntries(
+    Object.entries(validationResult(req).mapped()).map(([field, error]) => [field, error.msg])
+);
 
 const NUMBER_OF_UPCOMING_PROJECTS = 5;
 
@@ -74,29 +121,9 @@ const readProjectForm = (body) => ({
     organization_id: Number(body.organization_id)
 });
 
-const validateProject = async (project) => {
-    const errors = {};
-    if (!project.title) errors.title = 'Title is required.';
-    else if (project.title.length < 3) errors.title = 'Title must be at least 3 characters.';
-    else if (project.title.length > 150) errors.title = 'Title must be 150 characters or fewer.';
-    if (!project.description) errors.description = 'Description is required.';
-    else if (project.description.length < 3) errors.description = 'Description must be at least 3 characters.';
-    const parsedDate = new Date(`${project.project_date}T00:00:00Z`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(project.project_date)
-        || Number.isNaN(parsedDate.getTime())
-        || parsedDate.toISOString().slice(0, 10) !== project.project_date) {
-        errors.project_date = 'Enter a valid project date.';
-    }
-    if (!Number.isInteger(project.organization_id) || project.organization_id < 1
-        || !await getOrganizationById(project.organization_id)) {
-        errors.organization_id = 'Select an organization.';
-    }
-    return errors;
-};
-
 const createProjectAction = async (req, res) => {
     const project = readProjectForm(req.body);
-    const errors = await validateProject(project);
+    const errors = getValidationErrors(req);
     if (Object.keys(errors).length) {
         return projectForm(res, {
             title: 'Create Service Project', heading: 'Create a Service Project',
@@ -114,7 +141,7 @@ const updateProjectAction = async (req, res) => {
         return res.status(404).send('Project not found');
     }
     const project = readProjectForm(req.body);
-    const errors = await validateProject(project);
+    const errors = getValidationErrors(req);
     if (Object.keys(errors).length) {
         return projectForm(res, {
             title: 'Edit Service Project', heading: 'Edit Service Project',
@@ -163,14 +190,16 @@ const updateProjectCategoriesAction = async (req, res) => {
     const categories = await getAllCategories();
     const availableIds = new Set(categories.map(category => category.category_id));
     const selectedCategoryIds = [...new Set(parsedIds)];
-    const hasInvalidId = parsedIds.some(id => !Number.isInteger(id) || !availableIds.has(id));
+    const errors = getValidationErrors(req);
+    const hasInvalidId = Boolean(errors.categoryIds)
+        || parsedIds.some(id => !Number.isInteger(id) || !availableIds.has(id));
 
     if (hasInvalidId) {
         return renderProjectCategoriesPage(
             res,
             project,
             selectedCategoryIds.filter(id => availableIds.has(id)),
-            { categoryIds: 'Select categories from the list.' },
+            { categoryIds: errors.categoryIds || 'Select categories from the list.' },
             400
         );
     }
@@ -186,6 +215,8 @@ export {
     showProjectDetailsPage,
     showNewProjectPage,
     showEditProjectPage,
+    projectValidationRules,
+    projectCategoryValidationRules,
     createProjectAction,
     updateProjectAction,
     showAssignCategoriesPage,

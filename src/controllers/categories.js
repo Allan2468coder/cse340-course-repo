@@ -1,4 +1,5 @@
 // Import any needed model functions
+import { body, validationResult } from 'express-validator';
 import {
     getAllCategories,
     getCategoryById,
@@ -6,6 +7,19 @@ import {
     createCategory,
     updateCategory
 } from '../models/categories.js';
+
+const categoryValidationRules = [
+    body('name')
+        .trim()
+        .notEmpty().withMessage('Category name is required.')
+        .bail()
+        .isLength({ min: 3, max: 100 })
+        .withMessage('Category name must be between 3 and 100 characters.')
+];
+
+const getValidationErrors = (req) => Object.fromEntries(
+    Object.entries(validationResult(req).mapped()).map(([field, error]) => [field, error.msg])
+);
 
 // Define any controller functions
 const showCategoriesPage = async (req, res) => {
@@ -63,23 +77,9 @@ const showEditCategoryPage = async (req, res) => {
     });
 };
 
-const validateCategory = (name) => {
-    const errors = {};
-
-    if (!name) {
-        errors.name = 'Category name is required.';
-    } else if (name.length < 3) {
-        errors.name = 'Category name must be at least 3 characters.';
-    } else if (name.length > 100) {
-        errors.name = 'Category name must be 100 characters or fewer.';
-    }
-
-    return errors;
-};
-
 const createCategoryAction = async (req, res) => {
     const category = { name: String(req.body.name || '').trim() };
-    const errors = validateCategory(category.name);
+    const errors = getValidationErrors(req);
 
     if (Object.keys(errors).length > 0) {
         return res.status(400).render('category-form', {
@@ -107,7 +107,7 @@ const createCategoryAction = async (req, res) => {
 const updateCategoryAction = async (req, res) => {
     const categoryId = Number(req.params.id);
     const category = { name: String(req.body.name || '').trim() };
-    const errors = validateCategory(category.name);
+    const errors = getValidationErrors(req);
 
     if (!Number.isInteger(categoryId) || categoryId < 1) {
         return res.status(404).send('Category not found');
@@ -145,6 +145,7 @@ export {
     showCategoryDetailsPage,
     showNewCategoryPage,
     showEditCategoryPage,
+    categoryValidationRules,
     createCategoryAction,
     updateCategoryAction
 };
