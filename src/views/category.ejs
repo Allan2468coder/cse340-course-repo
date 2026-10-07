@@ -2,6 +2,7 @@
 <main>
     <h1><%= title %></h1>
     <h2><%= category.name %></h2>
+    <p><a href="/edit-category/<%= category.category_id %>">Edit Category</a></p>
     <p>Projects in this category:</p>
     <% if (projects.length > 0) { %>
         <ul>

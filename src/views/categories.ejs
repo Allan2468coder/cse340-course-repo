@@ -3,6 +3,7 @@
     <h1><%= title %></h1>
     <h2>Service Project Categories</h2>
     <p>Explore opportunities to make a difference in these areas:</p>
+    <p><a href="/new-category">Create New Category</a></p>
     <ul>
     <% categories.forEach(category => { %>
         <li><a href="/category/<%= category.category_id %>"><strong><%= category.name %></strong></a></li>
