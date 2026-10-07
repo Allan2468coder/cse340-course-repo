@@ -1,0 +1,15 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <h2>Welcome, <%= account.account_firstname %></h2>
+    <p>You are signed in as <strong><%= account.account_type %></strong>.</p>
+    <ul>
+        <li><a href="/organizations">Browse organizations</a></li>
+        <li><a href="/projects">Browse service projects</a></li>
+        <li><a href="/categories">Browse categories</a></li>
+        <% if (account.account_type === 'Admin') { %>
+            <li><a href="/users">View registered users</a></li>
+        <% } %>
+    </ul>
+</main>
+<%- include('partials/footer') %>

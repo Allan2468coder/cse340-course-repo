@@ -5,3 +5,10 @@
         <% }) %>
     </div>
 <% } %>
+<% if (errorMessages && errorMessages.length > 0) { %>
+    <div class="flash-message flash-error" role="alert" aria-live="assertive">
+        <% errorMessages.forEach(message => { %>
+            <p><%= message %></p>
+        <% }) %>
+    </div>
+<% } %>

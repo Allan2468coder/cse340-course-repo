@@ -2,7 +2,9 @@
 <main>
     <h1><%= title %></h1>
     <h2>Upcoming Service Projects</h2>
-    <p><a href="/new-project">Create New Service Project</a></p>
+    <% if (currentUser && currentUser.account_type === 'Admin') { %>
+        <p><a href="/new-project">Create New Service Project</a></p>
+    <% } %>
     <ul>
     <% projects.forEach(project => { %>
         <li>
@@ -13,7 +15,9 @@
             }) %>:
             <a href="/project/<%= project.project_id %>"><strong><%= project.title %></strong></a>
             by <a href="/organization/<%= project.organization_id %>"><%= project.organization_name %></a>
-            <a href="/edit-project/<%= project.project_id %>">Edit</a>
+            <% if (currentUser && currentUser.account_type === 'Admin') { %>
+                <a href="/edit-project/<%= project.project_id %>">Edit</a>
+            <% } %>
         </li>
     <% }) %>
     </ul>

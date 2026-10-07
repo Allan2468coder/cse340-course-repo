@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { testConnection } from './src/models/db.js';
+import { ensureAccountTable, ensureAdminAccount } from './src/models/accounts.js';
 import router from './src/routes.js';
 
 // Define the application environment
@@ -26,7 +27,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
 app.use(session({
-  secret: randomBytes(32).toString('hex'),
+  secret: process.env.SESSION_SECRET || randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: 'lax', secure: 'auto', maxAge: 30 * 60 * 1000 }
@@ -50,7 +51,9 @@ app.use((req, res, next) => {
 // Middleware to make NODE_ENV available to all templates
 app.use((req, res, next) => {
     res.locals.NODE_ENV = NODE_ENV;
-  res.locals.successMessages = req.flash('success');
+    res.locals.currentUser = req.session.account || null;
+    res.locals.successMessages = req.flash('success');
+    res.locals.errorMessages = req.flash('error');
     next();
 });
 
@@ -81,12 +84,25 @@ app.use((err, req, res, next) => {
     res.status(status).render(`errors/${template}`, context);
 });
 
-app.listen(PORT, async () => {
-  try {
-    await testConnection();
+const startServer = async () => {
+  await testConnection();
+  await ensureAccountTable();
+  const adminReady = await ensureAdminAccount({
+    email: process.env.ADMIN_EMAIL || 'admin@example.com',
+    password: process.env.ADMIN_PASSWORD,
+    firstName: process.env.ADMIN_FIRSTNAME || 'Admin',
+    lastName: process.env.ADMIN_LASTNAME || 'User'
+  });
+  if (!adminReady && NODE_ENV !== 'development') {
+    throw new Error('ADMIN_PASSWORD must be set to provision the required admin account.');
+  }
+  app.listen(PORT, () => {
     console.log(`Server is running at http://127.0.0.1:${PORT}`);
     console.log(`Environment: ${NODE_ENV}`);
-  } catch (error) {
-    console.error('Error connecting to the database:', error);
-  }
+  });
+};
+
+startServer().catch(error => {
+  console.error('Application startup failed:', error.message);
+  process.exitCode = 1;
 });

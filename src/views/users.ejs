@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <% if (users.length > 0) { %>
+        <div class="table-scroll">
+            <table>
+                <caption>Registered users and account roles</caption>
+                <thead>
+                    <tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th></tr>
+                </thead>
+                <tbody>
+                    <% users.forEach(user => { %>
+                        <tr>
+                            <td><%= user.account_firstname %> <%= user.account_lastname %></td>
+                            <td><%= user.account_email %></td>
+                            <td><%= user.account_type %></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <p>No registered users were found.</p>
+    <% } %>
+</main>
+<%- include('partials/footer') %>

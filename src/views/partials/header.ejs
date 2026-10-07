@@ -13,6 +13,14 @@
             <li><a href="/organizations">Organizations</a></li>
             <li><a href="/projects">Projects</a></li>
             <li><a href="/categories">Categories</a></li>
+            <% if (currentUser) { %>
+                <li><a href="/dashboard">Dashboard</a></li>
+                <% if (currentUser.account_type === 'Admin') { %><li><a href="/users">Registered Users</a></li><% } %>
+                <li><a href="/logout">Log Out</a></li>
+            <% } else { %>
+                <li><a href="/login">Log In</a></li>
+                <li><a href="/register">Register</a></li>
+            <% } %>
         </ul>
     </nav>
     <%- include('flash') %>

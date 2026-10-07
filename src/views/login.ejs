@@ -1,0 +1,19 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <form action="/login" method="post">
+        <div class="form-field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" value="<%= email %>" required autocomplete="username">
+            <% if (errors.email) { %><p class="field-error" role="alert"><%= errors.email %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" required autocomplete="current-password">
+            <% if (errors.password) { %><p class="field-error" role="alert"><%= errors.password %></p><% } %>
+        </div>
+        <% if (errors.credentials) { %><p class="field-error" role="alert"><%= errors.credentials %></p><% } %>
+        <button type="submit">Log In</button>
+    </form>
+</main>
+<%- include('partials/footer') %>

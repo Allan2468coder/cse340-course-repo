@@ -1,0 +1,33 @@
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <form action="/register" method="post">
+        <div class="form-field">
+            <label for="first_name">First name</label>
+            <input id="first_name" name="first_name" type="text" value="<%= account.first_name %>" required maxlength="50" autocomplete="given-name">
+            <% if (errors.first_name) { %><p class="field-error" role="alert"><%= errors.first_name %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="last_name">Last name</label>
+            <input id="last_name" name="last_name" type="text" value="<%= account.last_name %>" required maxlength="50" autocomplete="family-name">
+            <% if (errors.last_name) { %><p class="field-error" role="alert"><%= errors.last_name %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" value="<%= account.email %>" required maxlength="255" autocomplete="email">
+            <% if (errors.email) { %><p class="field-error" role="alert"><%= errors.email %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password">
+            <% if (errors.password) { %><p class="field-error" role="alert"><%= errors.password %></p><% } %>
+        </div>
+        <div class="form-field">
+            <label for="confirm_password">Confirm password</label>
+            <input id="confirm_password" name="confirm_password" type="password" required minlength="8" maxlength="128" autocomplete="new-password">
+            <% if (errors.confirm_password) { %><p class="field-error" role="alert"><%= errors.confirm_password %></p><% } %>
+        </div>
+        <button type="submit">Create Account</button>
+    </form>
+</main>
+<%- include('partials/footer') %>
