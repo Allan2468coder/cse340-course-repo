@@ -4,7 +4,6 @@
     <h2><%= project.title %></h2>
     <% if (currentUser && currentUser.account_type === 'Admin') { %>
         <p><a href="/edit-project/<%= project.project_id %>">Edit Service Project</a></p>
-        <p><a href="/assign-categories/<%= project.project_id %>">Update Project Categories</a></p>
     <% } %>
     <p><strong>Date:</strong> <%= new Date(project.date || project.project_date).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -16,6 +15,7 @@
     <p><strong>Description:</strong> <%= project.description %></p>
 
     <h3>Categories</h3>
+    <p><a href="/assign-categories/<%= project.project_id %>">Update Project Categories</a></p>
     <% if (categories && categories.length > 0) { %>
         <ul>
         <% categories.forEach(category => { %>
