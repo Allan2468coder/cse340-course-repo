@@ -20,7 +20,9 @@ import {
 	createProjectAction,
 	updateProjectAction,
 	showAssignCategoriesPage,
-	updateProjectCategoriesAction
+	updateProjectCategoriesAction,
+	volunteerForProject,
+	removeVolunteerFromProject
 } from './controllers/projects.js';
 import {
 	showCategoriesPage,
@@ -62,6 +64,8 @@ router.get('/edit-organization/:id', requireRole('Admin'), showEditOrganizationP
 router.post('/edit-organization/:id', requireRole('Admin'), organizationValidationRules, updateOrganizationAction);
 router.get('/projects', showProjectsPage);
 router.get('/project/:id', showProjectDetailsPage);
+router.post('/project/:id/volunteer', requireLogin, volunteerForProject);
+router.post('/project/:id/unvolunteer', requireLogin, removeVolunteerFromProject);
 router.get('/new-project', requireRole('Admin'), showNewProjectPage);
 router.post('/new-project', requireRole('Admin'), projectValidationRules, createProjectAction);
 router.get('/edit-project/:id', requireRole('Admin'), showEditProjectPage);

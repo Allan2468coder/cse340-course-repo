@@ -11,5 +11,21 @@
             <li><a href="/users">View registered users</a></li>
         <% } %>
     </ul>
+    <h2>Projects I’m Volunteering For</h2>
+    <% if (volunteerProjects.length) { %>
+        <ul>
+            <% volunteerProjects.forEach(project => { %>
+                <li>
+                    <a href="/project/<%= project.project_id %>"><%= project.title %></a>
+                    (<%= project.organization_name %>)
+                    <form action="/project/<%= project.project_id %>/unvolunteer" method="post" style="display: inline">
+                        <button type="submit">Remove me</button>
+                    </form>
+                </li>
+            <% }) %>
+        </ul>
+    <% } else { %>
+        <p>You have not signed up for any projects yet.</p>
+    <% } %>
 </main>
 <%- include('partials/footer') %>

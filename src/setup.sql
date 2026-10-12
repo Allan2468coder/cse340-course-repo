@@ -41,6 +41,24 @@ CREATE TABLE service_project (
         ON UPDATE CASCADE
 );
 
+-- Track volunteer signups between accounts and service projects
+CREATE TABLE project_volunteer (
+    account_id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    signup_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, project_id),
+    CONSTRAINT project_volunteer_account_fk
+        FOREIGN KEY (account_id)
+        REFERENCES account (account_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT project_volunteer_project_fk
+        FOREIGN KEY (project_id)
+        REFERENCES service_project (project_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
 -- Insert five projects for BrightFuture Builders
 INSERT INTO service_project
     (title, description, project_date, organization_id)

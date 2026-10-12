@@ -7,7 +7,10 @@ import {
     getProjectById,
     createProject,
     updateProject,
-    updateProjectCategories
+    updateProjectCategories,
+    addProjectVolunteer,
+    removeProjectVolunteer,
+    isProjectVolunteer
 } from '../models/projects.js';
 import { getAllOrganizations, getOrganizationById } from '../models/organizations.js';
 import { getAllCategories } from '../models/categories.js';
@@ -82,8 +85,33 @@ const showProjectDetailsPage = async (req, res) => {
     }
 
     const categories = await getProjectCategories(projectId);
+    const isVolunteer = req.session.account
+        ? await isProjectVolunteer(projectId, req.session.account.account_id)
+        : false;
     const title = project.title;
-    res.render('project', { title, project, categories });
+    res.render('project', { title, project, categories, isVolunteer });
+};
+
+const volunteerForProject = async (req, res) => {
+    const projectId = Number(req.params.id);
+    if (!Number.isInteger(projectId) || projectId < 1 || !await getProjectDetails(projectId)) {
+        return res.status(404).send('Project not found');
+    }
+    await addProjectVolunteer(projectId, req.session.account.account_id);
+    req.flash('success', 'You are now volunteering for this project.');
+    return res.redirect(`/project/${projectId}`);
+};
+
+const removeVolunteerFromProject = async (req, res) => {
+    const projectId = Number(req.params.id);
+    if (!Number.isInteger(projectId) || projectId < 1 || !await getProjectDetails(projectId)) {
+        return res.status(404).send('Project not found');
+    }
+    await removeProjectVolunteer(projectId, req.session.account.account_id);
+    req.flash('success', 'You have been removed from this project.');
+    return res.redirect(req.get('referer')?.startsWith(`${req.protocol}://${req.get('host')}/dashboard`)
+        ? '/dashboard'
+        : `/project/${projectId}`);
 };
 
 const projectForm = async (res, { title, heading, action, project, errors }, status = 200) => {
@@ -220,5 +248,7 @@ export {
     createProjectAction,
     updateProjectAction,
     showAssignCategoriesPage,
-    updateProjectCategoriesAction
+    updateProjectCategoriesAction,
+    volunteerForProject,
+    removeVolunteerFromProject
 };
