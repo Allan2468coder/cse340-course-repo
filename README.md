@@ -1,4 +1,13 @@
 # cse340-course-repo
+
+## Project site
+
+The GitHub Pages project overview is available at
+https://allan2468coder.github.io/cse340-course-repo/. It describes the
+application and links to its source and local setup instructions. GitHub Pages
+only hosts static files; run the Express and PostgreSQL application locally
+using the setup steps below.
+
 # Local setup
 
 1. Copy `.env.example` to `.env` and set `DB_URL` to your PostgreSQL connection URL.
