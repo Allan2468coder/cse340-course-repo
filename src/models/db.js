@@ -1,4 +1,5 @@
 
+import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
 
 /**
@@ -14,6 +15,7 @@ import { Pool } from 'pg';
  */
 const pool = new Pool({
     connectionString: process.env.DB_URL,
+    connectionTimeoutMillis: 10000,
     ssl: {
         rejectUnauthorized: false
     }
@@ -81,14 +83,35 @@ if (process.env.NODE_ENV === 'development' && process.env.ENABLE_SQL_LOGGING ===
  * Tests the database connection by executing a simple query.
  */
 const testConnection = async() => {
+    if (!process.env.DB_URL || process.env.DB_URL === 'your_postgresql_connection_url') {
+        throw new Error('DB_URL is not configured. Set it in .env to a reachable PostgreSQL connection URL.');
+    }
+
     try {
         const result = await db.query('SELECT NOW() as current_time');
         console.log('Database connection successful:', result.rows[0].current_time);
         return true;
     } catch (error) {
         console.error('Database connection failed:', error.message);
+        if (error.code === 'ENOTFOUND' || /connection terminated due to connection timeout/i.test(error.message)) {
+            throw new Error(
+                'The PostgreSQL host in DB_URL could not be reached. For local development, use the provider external database URL (Render: Dashboard > database > Connect > External), or a local PostgreSQL URL. Also confirm the database is running and accepts connections from this machine.',
+                { cause: error }
+            );
+        }
         throw error;
     }
 };
 
-export { db as default, testConnection };
+const initializeDatabase = async () => {
+    const schema = await readFile(new URL('../setup.sql', import.meta.url), 'utf8');
+    try {
+        await pool.query(schema);
+        console.log('Database schema and sample data are ready.');
+    } catch (error) {
+        console.error('Database schema initialization failed:', error.message);
+        throw error;
+    }
+};
+
+export { db as default, testConnection, initializeDatabase };

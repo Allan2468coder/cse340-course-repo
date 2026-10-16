@@ -15,10 +15,10 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon",
+    "dev": "node --watch server.js",
     "build": "node --check server.js",
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
   "dependencies": {
     "connect-flash": "^0.1.1",
@@ -28,8 +28,5 @@
     "express-session": "^1.19.0",
     "express-validator": "^7.3.2",
     "pg": "^8.23.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
   }
 }
